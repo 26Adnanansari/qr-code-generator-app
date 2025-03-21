@@ -18,7 +18,7 @@ const About = () => {
                 >
                     <div className="md:w-1/2 text-center md:text-left mb-8 md:mb-0">
                         <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
-                            Hi, I'm Adnan Ansari
+                            Hi, I&apos;m Adnan Ansari
                         </h1>
                         <p className="text-lg text-gray-300 leading-relaxed">
                             A passionate Full Stack Developer with expertise in modern web technologies

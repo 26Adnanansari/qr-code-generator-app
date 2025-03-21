@@ -4,7 +4,7 @@ import type { BaseFormProps } from '@/types/forms';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
-import { QRCodeSVG } from 'qrcode.react';
+
 
 
 interface ExcelRow {
@@ -84,65 +84,73 @@ END:VCARD`;
 
   const generateQRCodes = async () => {
     if (!file) return;
-
+  
     setProcessing(true);
     try {
       const workbook = new ExcelJS.Workbook();
       const arrayBuffer = await file.arrayBuffer();
       await workbook.xlsx.load(arrayBuffer);
-      
+  
       const worksheet = workbook.getWorksheet(1);
       if (!worksheet) {
         throw new Error('No worksheet found');
       }
-
+  
       const jsonData: ExcelRow[] = [];
-      
+  
       // Read rows
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header row
-        
+  
         const rowData: ExcelRow = {};
         row.eachCell((cell, colNumber) => {
           const header = worksheet.getRow(1).getCell(colNumber).value?.toString() || '';
           rowData[header] = cell.value?.toString() || '';
         });
-        
+  
         jsonData.push(rowData);
       });
-
+  
       // Create a ZIP file
       const zip = new JSZip();
       const folderName = file.name.replace('.xlsx', '');
       const folder = zip.folder(folderName);
-
-      // Generate QR code for each row
+  
+      // Generate QR code for each row using a canvas
       for (let i = 0; i < jsonData.length; i++) {
         const row = jsonData[i];
         const vCardString = generateVCardString(row);
-        
-        // Generate QR code as SVG
-        const qrCodeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        const qrComponent = (
-          <QRCodeSVG
-            value={vCardString}
-            size={300}
-            level="H"
-            includeMargin={true}
-          />
-        );
-        
-        // Convert React component to string
-        const svgString = new XMLSerializer().serializeToString(qrCodeSvg);
-        
+  
+        // Create a temporary canvas
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+  
+        // Create a QR code image
+        const qrCode = new Image();
+        qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(vCardString)}`;
+  
+        await new Promise((resolve) => {
+          qrCode.onload = () => {
+            canvas.width = qrCode.width;
+            canvas.height = qrCode.height;
+            ctx.drawImage(qrCode, 0, 0);
+            resolve(true);
+          };
+        });
+  
+        // Convert canvas to a data URL
+        const qrDataUrl = canvas.toDataURL('image/png');
+        const qrBlob = await fetch(qrDataUrl).then((res) => res.blob());
+  
         // Add to ZIP
-        folder?.file(`${row.Name || `contact_${i + 1}`}.svg`, svgString);
+        folder?.file(`${row.Name || `contact_${i + 1}`}.png`, qrBlob);
       }
-
+  
       // Generate and download ZIP
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, `${folderName}_QR_Codes.zip`);
-
+  
     } catch (error) {
       setError('Error generating QR codes');
       console.error(error);
@@ -150,6 +158,7 @@ END:VCARD`;
       setProcessing(false);
     }
   };
+  
 
   return (
     <div className="space-y-4">
