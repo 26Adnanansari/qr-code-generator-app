@@ -47,3 +47,5 @@ qrcode_*.png
 .idea/
 *.swp
 Thumbs.db
+
+.vercel
